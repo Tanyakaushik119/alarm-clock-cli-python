@@ -1,0 +1,378 @@
+#Requirements
+Core :
+-Add alarm for a specific time
+-Validate user input
+-Wait until alarm time
+-Trigger alarm notification
+-Graceful exit
+
+#Non Functional Requirements
+-Single-file executable script
+-Standard library only.
+
+#Nice to have
+-Recurring Alarms
+-Snooze
+
+#Out of Scope
+
+- Distributed scheduling
+- Time zone support
+- GUI/Desktop application
+- Push notifications (Email, SMS, Slack, etc.)
+
+Although implemented as a single executable script, the code is logically separated into layers to improve maintainability and testability.
+
+--CLI
+--Infrastururete
+--Services
+
+## Components
+
+### Alarm (Domain Model)
+
+Represents an alarm object.
+
+Responsibilities:
+
+- Alarm ID
+- Trigger time
+- Message
+- Enabled/Disabled state
+
+---
+
+### Alarm Service
+
+Coordinates application use cases.
+
+Responsibilities:
+
+- Create alarms
+- Delete alarms
+- List alarms
+- Trigger alarms
+- Persist updates
+
+Contains business logic but no file I/O details.
+
+---
+
+### JSON Store
+
+Responsible for persistence.
+
+Responsibilities:
+
+- Load alarms
+- Save alarms
+- Handle missing JSON files gracefully
+
+---
+
+### Scheduler
+
+Responsible for alarm detection.
+
+Responsibilities:
+
+- Compare current time against alarm time
+- Determine whether an alarm is due
+- Prevent alarms from firing multiple times
+
+---
+
+### Notifier
+
+Responsible for notifying users when alarms trigger.
+
+Current implementation:
+
+- Console output
+- Terminal bell (`\a`)
+
+Future implementations could include:
+
+- Desktop notifications
+- Email notifications
+- Slack notifications
+
+---
+
+# Design Decisions
+
+## 1. JSON Persistence Instead of Database
+
+### Decision
+
+Store alarms in a local JSON file.
+
+### Reasoning
+
+For a CLI alarm clock, a database introduces unnecessary complexity.
+
+Benefits:
+
+- No setup required
+- Human-readable format
+- Easy debugging
+- Satisfies persistence requirements
+
+Tradeoff:
+
+- Not suitable for large datasets
+- No concurrent write protection
+
+---
+
+## 2. Standard Library Only
+
+### Decision
+
+Avoid third-party dependencies.
+
+### Reasoning
+
+Keeps installation simple:
+
+```bash
+python alarm.py
+```
+
+Benefits:
+
+- Portable
+- Easy to review
+- Minimal operational overhead
+
+Tradeoff:
+
+- Fewer notification options
+- Less sophisticated scheduling
+
+---
+
+## 3. Separate Business Logic from CLI
+
+### Decision
+
+CLI only handles argument parsing.
+
+Business logic lives in the service layer.
+
+### Reasoning
+
+Improves:
+
+- Testability
+- Maintainability
+- Separation of concerns
+
+Example:
+
+Bad:
+
+```python
+if current_time >= alarm_time:
+    print("Alarm!")
+```
+
+Good:
+
+```python
+service.check_due_alarms()
+```
+
+---
+
+## 4. Clock Abstraction
+
+### Decision
+
+Introduce a Clock component.
+
+```python
+clock.now()
+```
+
+instead of directly calling:
+
+```python
+datetime.now()
+```
+
+### Reasoning
+
+Makes time-dependent logic testable.
+
+Example:
+
+```python
+FakeClock(
+    datetime(2026, 6, 4, 8, 0)
+)
+```
+
+Tradeoff:
+
+- Slightly more code
+- Much easier testing
+
+---
+
+## 5. Polling Scheduler
+
+### Decision
+
+Use a simple polling loop.
+
+```python
+while True:
+    check_due_alarms()
+    sleep(1)
+```
+
+### Reasoning
+
+Simple and reliable.
+
+Benefits:
+
+- Easy to understand
+- Easy to test
+- Sufficient for small-scale usage
+
+Tradeoff:
+
+- Not optimal for thousands of alarms
+- Slight delay depending on polling interval
+
+---
+
+# Testing Strategy
+
+Testing focuses on the highest-risk areas.
+
+## Time Validation
+
+Verify:
+
+- Valid timestamps accepted
+- Invalid dates rejected
+- Invalid times rejected
+- Empty input rejected
+
+Examples:
+
+```text
+2026-06-04T08:30:00  -> Valid
+2026-13-04T08:30:00  -> Invalid
+banana               -> Invalid
+```
+
+---
+
+## Alarm Creation
+
+Verify:
+
+- Alarm is created successfully
+- Unique ID generated
+- Default values assigned correctly
+- Multiple alarms can coexist
+
+---
+
+## Persistence
+
+Verify:
+
+- Save/load roundtrip
+- Empty JSON handling
+- Missing file handling
+- Delete functionality
+
+---
+
+## Alarm Detection
+
+Verify:
+
+- Alarm not triggered before due time
+- Alarm triggered exactly at due time
+- Alarm triggered when overdue
+- Disabled alarms ignored
+- Alarm triggers only once
+
+---
+
+# Usage
+
+## Add Alarm
+
+```bash
+python alarm.py add \
+  --time "2026-06-04T18:30:00" \
+  --message "Join standup"
+```
+
+## List Alarms
+
+```bash
+python alarm.py list
+```
+
+## Delete Alarm
+
+```bash
+python alarm.py delete <alarm_id>
+```
+
+## Run Scheduler
+
+```bash
+python alarm.py run
+```
+
+Stop the scheduler using:
+
+```text
+CTRL + C
+```
+
+---
+
+# Future Improvements
+
+Potential enhancements that align with the current architecture:
+
+- Recurring alarms
+- Snooze functionality
+- Desktop notifications
+- Alarm categories/tags
+- Alarm search/filtering
+- Configurable polling interval
+- Unit test suite with pytest
+
+---
+
+# Assumptions
+
+- System local time is used.
+- Alarm times are provided in ISO datetime format.
+- Single-user application.
+- Scheduler process must be running for alarms to trigger.
+
+---
+
+# Summary
+
+This project intentionally favors simplicity over feature breadth. The design demonstrates:
+
+- Separation of concerns
+- Clean architecture principles
+- Testability
+- Appropriate use of persistence
+- Pragmatic engineering tradeoffs
+
+The goal is to deliver a maintainable and extensible CLI application without introducing unnecessary complexity.
