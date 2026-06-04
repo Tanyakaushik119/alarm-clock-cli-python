@@ -21,6 +21,26 @@ Core :
 - GUI/Desktop application
 - Push notifications (Email, SMS, Slack, etc.)
 
+# AI-Assisted Development
+
+AI was used for:
+
+1. Requirement refinement
+2. Architecture review
+3. Test case generation
+
+All generated code and suggestions were reviewed and validated manually.
+
+Key decisions retained after review:
+- JSON persistence
+- Service layer separation
+- Clock abstraction for testing
+
+Suggestions intentionally rejected:
+- Database integration
+- Full Clean Architecture
+- Third-party scheduler libraries
+
 Although implemented as a single executable script, the code is logically separated into layers to improve maintainability and testability.
 
 --CLI
